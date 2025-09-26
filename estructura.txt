@@ -1,0 +1,33 @@
+app/
+│
+├── main.py
+├── database.py
+├── routes.py
+│
+├── tables/           # Modelos SQLAlchemy
+│   ├── importador.py
+│   ├── producto.py
+│   ├── pais.py
+│   ├── puerto.py
+│   └── importacion.py
+│
+├── schemas/          # Pydantic schemas
+│   ├── importador.py
+│   ├── producto.py
+│   ├── pais.py
+│   ├── puerto.py
+│   └── importacion.py
+│
+├── services/         # Lógica de base de datos
+│   ├── importador.py
+│   ├── producto.py
+│   ├── pais.py
+│   ├── puerto.py
+│   └── importacion.py
+│
+└── endpoints/        # Endpoints API
+    ├── importador.py
+    ├── producto.py
+    ├── pais.py
+    ├── puerto.py
+    └── importacion.py
