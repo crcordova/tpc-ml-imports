@@ -27,6 +27,20 @@ class ImportadorService:
             select(Importador).where(Importador.id == importador_id)
         )
         return result.scalars().first()
+    
+    @staticmethod
+    async def get_or_create(db: AsyncSession, rut: str, dv: str, nombre: str) -> Importador:
+        result = await db.execute(
+            select(Importador).where(Importador.rut == rut)
+        )
+        db_importador = result.scalars().first()
+        if db_importador:
+            return db_importador
+        new_importador = Importador(rut=rut, nombre=nombre, dv=dv)
+        db.add(new_importador)
+        await db.flush()
+        await db.refresh(new_importador)
+        return new_importador
 
     @staticmethod
     async def update(db: AsyncSession, importador_id: int, importador_data: dict) -> Importador | None:

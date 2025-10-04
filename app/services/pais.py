@@ -7,7 +7,7 @@ class PaisService:
 
     @staticmethod
     async def create(db: AsyncSession, pais: PaisCreate) -> Pais:
-        db_pais = Pais(**pais.dict())
+        db_pais = Pais(**pais.model_dump())
         db.add(db_pais)
         await db.commit()
         await db.refresh(db_pais)
@@ -22,13 +22,25 @@ class PaisService:
     async def get_by_id(db: AsyncSession, pais_id: int) -> Pais | None:
         result = await db.execute(select(Pais).where(Pais.id == pais_id))
         return result.scalars().first()
+    
+    @staticmethod
+    async def get_or_create(db: AsyncSession, nombre: str) -> Pais:
+        result = await db.execute(select(Pais).where(Pais.nombre == nombre))
+        db_pais = result.scalars().first()
+        if db_pais:
+            return db_pais
+        new_pais = Pais(nombre=nombre)
+        db.add(new_pais)
+        await db.flush()
+        await db.refresh(new_pais)
+        return new_pais
 
     @staticmethod
-    async def update(db: AsyncSession, pais_id: int, pais_data: dict) -> Pais | None:
-        result = await db.execute(select(Pais).where(Pais.id == pais_id))
+    async def update(db: AsyncSession, pais_data: dict) -> Pais | None:
+        result = await db.execute(select(Pais).where(Pais.nombre == pais_data))
         db_pais = result.scalars().first()
         if not db_pais:
-            return None
+            return db_pais
         for key, value in pais_data.items():
             setattr(db_pais, key, value)
         await db.commit()

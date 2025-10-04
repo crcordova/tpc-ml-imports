@@ -22,6 +22,18 @@ class PuertoService:
     async def get_by_id(db: AsyncSession, puerto_id: int) -> Puerto | None:
         result = await db.execute(select(Puerto).where(Puerto.id == puerto_id))
         return result.scalars().first()
+    
+    @staticmethod
+    async def get_or_create(db: AsyncSession, nombre: str, pais_id: int) -> Puerto:
+        result = await db.execute(select(Puerto).where(Puerto.nombre == nombre, Puerto.pais_id == pais_id))
+        db_puerto = result.scalars().first()
+        if db_puerto:
+            return db_puerto
+        new_puerto = Puerto(nombre=nombre, pais_id=pais_id)
+        db.add(new_puerto)
+        await db.flush()
+        await db.refresh(new_puerto)
+        return new_puerto
 
     @staticmethod
     async def update(db: AsyncSession, puerto_id: int, puerto_data: dict) -> Puerto | None:

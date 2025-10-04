@@ -15,7 +15,7 @@ router = APIRouter(
     tags=["Load Excel"]
 )
 
-@router.post("/excel")
+@router.post("/")
 async def load_excel(file: UploadFile = File(...), db: AsyncSession = Depends(get_db_public)):
     """
     Endpoint para cargar un Excel de importaciones por producto.
@@ -27,49 +27,35 @@ async def load_excel(file: UploadFile = File(...), db: AsyncSession = Depends(ge
         raise HTTPException(status_code=400, detail="El archivo debe ser Excel (.xlsx o .xls)")
 
     try:
-        # Leer Excel
         contents = await file.read()
         df = pd.read_excel(BytesIO(contents))
 
-        # Limpiar y filtrar la data
         df = clean_and_filter_excel(df)
 
-        df.to_csv("debug_cleaned.csv", index=False)  # Guardar para debug
-
-        # Instanciar services
-        producto_service = ProductoService(db)
-        importador_service = ImportadorService(db)
-        pais_service = PaisService(db)
-        puerto_service = PuertoService(db)
-        importacion_service = ImportacionService(db)
-
-        # Iterar sobre cada fila y guardar en la DB
         for _, row in df.iterrows():
-            # 1️⃣ Pais origen y adquisicion
-            pais_origen = await pais_service.get_or_create(row["PAIS DE ORIGEN"])
-            pais_adquisicion = await pais_service.get_or_create(row["PAIS DE ADQUISICION"])
 
-            # 2️⃣ Puertos
-            puerto_embarque = await puerto_service.get_or_create(row["PUERTO DE EMBARQUE"], pais_origen.id)
-            puerto_desembarque = await puerto_service.get_or_create(row["PUERTO DE DESEMBARQUE"], pais_adquisicion.id)
+            pais_origen = await PaisService.get_or_create(db,row["pais_origen"])
+            pais_adquisicion = await PaisService.get_or_create(db,row["pais_adquisicion"])
 
-            # 3️⃣ Producto
-            producto = await producto_service.get_or_create(
-                nombre_generico=row["PRODUCTO"],
-                marca=row.get("MARCA"),
-                variedad=row.get("VARIEDAD"),
-                descripcion=row.get("DESCRIPCION"),
-                partida_arancelaria=row.get("PARTIDA ARANCELARIA")
+            puerto_embarque = await PuertoService.get_or_create(db,row["puerto_embarque"], pais_adquisicion.id)
+            puerto_desembarque = await PuertoService.get_or_create(db,row["puerto_desembarque"], 1)
+
+            producto = await ProductoService.get_or_create(db=db,
+                nombre_generico=row["producto"],
+                marca=row.get("marca"),
+                variedad=row.get("variedad"),
+                partida_arancelaria=row.get("partida_arancelaria")
             )
 
-            # 4️⃣ Importador
-            importador = await importador_service.get_or_create(
-                rut=row["RUT PROBABLE IMPORTADOR"],
-                nombre=row["PROBABLE IMPORTADOR"]
+            importador = await ImportadorService.get_or_create(
+                db=db,
+                rut=row["rut"],
+                dv=row["dv"],
+                nombre=row["nombre"]
             )
 
-            # 5️⃣ Importacion
-            await importacion_service.create_from_row(
+            await ImportacionService.create_from_row(
+                db=db,
                 row=row,
                 producto_id=producto.id,
                 importador_id=importador.id,
@@ -78,6 +64,7 @@ async def load_excel(file: UploadFile = File(...), db: AsyncSession = Depends(ge
                 puerto_embarque_id=puerto_embarque.id,
                 puerto_desembarque_id=puerto_desembarque.id
             )
+        await db.commit()
 
         return {"status": "success", "rows_processed": len(df)}
 

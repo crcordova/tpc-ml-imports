@@ -4,13 +4,14 @@ import importlib
 import importlib.util
 import inspect
 from pathlib import Path
-from sqlalchemy import text
+from sqlalchemy import text, insert
 from sqlalchemy.exc import ProgrammingError, OperationalError
 import logging
 from dotenv import load_dotenv
 
 load_dotenv()  
 from app.database import GLOBAL_DB_PUBLIC, Base
+from app.tables.pais import Pais
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -180,6 +181,25 @@ class DatabaseInitializer:
         except Exception as e:
             logger.error(f"Error verificando tablas existentes: {e}")
             return []
+        
+    async def ensure_default_country(self):
+        """Inserta Chile como país por defecto si no existe"""
+        async with self.engine.connect() as session:
+            # Verificar si ya existe un país con id=1
+            result = await session.execute(text("SELECT id FROM paises WHERE id = 1"))
+            exists = result.first()
+
+            if not exists:
+                await session.execute(
+                    insert(Pais).values(
+                        nombre="Chile",
+                        codigo_iso="CL"
+                    )
+                )
+                await session.commit()
+                logger.info("✅ País por defecto 'Chile' insertado en la base de datos")
+            else:
+                logger.info("ℹ️ País por defecto 'Chile' ya existe. No se inserta nuevamente.")
 
     async def initialize_database(self):
         """Proceso completo de inicialización"""
@@ -201,7 +221,8 @@ class DatabaseInitializer:
                 logger.info("Se encontraron tablas existentes. Verificando estructura...")
                 # Aquí podrías agregar lógica adicional para verificar la estructura
                 await self.create_tables()  # create_all solo crea las que no existen
-            
+
+            await self.ensure_default_country()
             logger.info("Inicialización de base de datos completada exitosamente")
             return True
             

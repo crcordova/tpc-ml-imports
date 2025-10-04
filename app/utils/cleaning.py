@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def clean_and_filter_excel(df):
     """
@@ -82,6 +83,10 @@ def clean_and_filter_excel(df):
     df = df.drop(columns=["DIA", "MES", "AÑO"])
 
     df["rut"] = df["rut"].astype(str).str.replace("^'", "", regex=True).str.strip()
+    df["dv"] = df["dv"].astype(object)
+    df["dv"] = df["dv"].apply(lambda x: str(x) if pd.notna(x) else None)
+    
+    df['partida_arancelaria'] = df['partida_arancelaria'].astype(str)
 
     # Normalizar nombre de producto
     df["producto"] = df["producto"].astype(str).str.upper().str.strip()
@@ -100,4 +105,5 @@ def clean_and_filter_excel(df):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             
+    df = df.replace({np.nan: None})
     return df
