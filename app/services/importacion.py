@@ -1,6 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
+from sqlalchemy.orm import joinedload
+from datetime import datetime, date
 from app.tables.importacion import Importacion
+from app.tables.producto import Producto
+from app.tables.importador import Importador
+from app.tables.pais import Pais
+from app.tables.puerto import Puerto
 from app.schemas.importacion import ImportacionCreate
 
 class ImportacionService:
@@ -15,12 +21,30 @@ class ImportacionService:
 
     @staticmethod
     async def get_all(db: AsyncSession) -> list[Importacion]:
-        result = await db.execute(select(Importacion))
+        result = await db.execute(select(Importacion).options(
+                joinedload(Importacion.importador),
+                joinedload(Importacion.producto),
+                joinedload(Importacion.pais_origen),
+                joinedload(Importacion.pais_adquisicion),
+                joinedload(Importacion.puerto_embarque).joinedload(Puerto.pais),
+                joinedload(Importacion.puerto_desembarque).joinedload(Puerto.pais),
+            ))
         return result.scalars().all()
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, importacion_id: int) -> Importacion | None:
-        result = await db.execute(select(Importacion).where(Importacion.id == importacion_id))
+    async def get_by_id(db: AsyncSession, importacion_id: int):
+        result = await db.execute(
+            select(Importacion)
+            .options(
+                joinedload(Importacion.importador),
+                joinedload(Importacion.producto),
+                joinedload(Importacion.pais_origen),
+                joinedload(Importacion.pais_adquisicion),
+                joinedload(Importacion.puerto_embarque).joinedload(Puerto.pais),
+                joinedload(Importacion.puerto_desembarque).joinedload(Puerto.pais),
+            )
+            .where(Importacion.id == importacion_id)
+        )
         return result.scalars().first()
     
     @staticmethod
@@ -88,3 +112,74 @@ class ImportacionService:
         await db.delete(db_importacion)
         await db.commit()
         return True
+
+    @staticmethod
+    async def get_importaciones(
+        db: AsyncSession,
+        fecha_start: date | None = None,
+        fecha_end: date | None = None,
+        nombre_importador: str | None = None,
+        rut_importador: str | None = None,
+        producto: str | None = None,
+        pais_origen: str | None = None
+    ):
+        query = (
+            select(Importacion)
+            .options(
+                joinedload(Importacion.producto),
+                joinedload(Importacion.importador),
+                joinedload(Importacion.pais_origen),
+                joinedload(Importacion.pais_adquisicion),
+            )
+        )
+
+        # Filtros dinámicos
+        filters = []
+
+        if fecha_start:
+            filters.append(Importacion.fecha >= fecha_start)
+        if fecha_end:
+            filters.append(Importacion.fecha <= fecha_end)
+        if nombre_importador:
+            filters.append(Importador.nombre.ilike(f"%{nombre_importador}%"))
+        if rut_importador:
+            filters.append(Importador.rut.ilike(f"%{rut_importador}%"))
+        if producto:
+            filters.append(Producto.nombre_generico.ilike(f"%{producto}%"))
+        if pais_origen:
+            filters.append(Pais.nombre.ilike(f"%{pais_origen}%"))
+
+        if filters:
+            query = query.join(Importacion.importador).join(Importacion.producto).join(Importacion.pais_origen).filter(and_(*filters))
+
+        result = await db.execute(query)
+        importaciones = result.scalars().all()
+
+        # Formatear resultado
+        response = []
+        for imp in importaciones:
+            response.append({
+                "id": imp.id,
+                "fecha": imp.fecha,
+                "pais_origen": imp.pais_origen.nombre if imp.pais_origen else None,
+                "pais_adquisicion": imp.pais_adquisicion.nombre if imp.pais_adquisicion else None,
+                "producto_nombre": imp.producto.nombre_generico if imp.producto else None,
+                "marca": imp.producto.marca if imp.producto else None,
+                "variedad": imp.producto.variedad if imp.producto else None,
+                "descripcion": imp.descripcion,
+                "via_transporte": imp.via_transporte,
+                "compania_transporte": imp.compania_transporte,
+                "forma_pago": imp.forma_pago,
+                "clausula": imp.clausula,
+                "cantidad": imp.cantidad,
+                "unidad": imp.unidad,
+                "fob_total": imp.fob_total,
+                "fob_unit": imp.fob_unit,
+                "flete_total": imp.flete_total,
+                "seguro_total": imp.seguro_total,
+                "cif_total": imp.cif_total,
+                "cif_unit": imp.cif_unit,
+                "impuesto": imp.impuesto,
+                "iva_total": imp.iva_total,
+            })
+        return response

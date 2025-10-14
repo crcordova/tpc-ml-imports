@@ -45,3 +45,6 @@ class Importacion(Base):
     pais_adquisicion = relationship("Pais", foreign_keys=[pais_adquisicion_id])
     puerto_embarque = relationship("Puerto", foreign_keys=[puerto_embarque_id])
     puerto_desembarque = relationship("Puerto", foreign_keys=[puerto_desembarque_id])
+
+    class Config:
+        from_attributes = True

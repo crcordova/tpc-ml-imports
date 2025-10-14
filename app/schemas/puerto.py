@@ -14,4 +14,4 @@ class PuertoResponse(PuertoBase):
     pais: Optional[PaisResponse] = None  # incluir info del país relacionado
 
     class Config:
-        orm_mode = True
+        from_attributes = True

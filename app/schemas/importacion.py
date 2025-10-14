@@ -47,4 +47,4 @@ class ImportacionResponse(ImportacionBase):
     puerto_desembarque: Optional[PuertoResponse] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
