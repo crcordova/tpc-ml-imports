@@ -487,9 +487,11 @@ class AnalyticsService:
         )
 
         if fecha_start:
-            query = query.where(Importacion.fecha >= fecha_start)
+            fecha_start_dt = datetime.strptime(fecha_start, "%Y-%m-%d").date()
+            query = query.where(Importacion.fecha >= fecha_start_dt)
         if fecha_end:
-            query = query.where(Importacion.fecha <= fecha_end)
+            fecha_end_dt = datetime.strptime(fecha_start, "%Y-%m-%d").date()
+            query = query.where(Importacion.fecha <= fecha_end_dt)
 
         result = await db.execute(query)
         rows = result.all()
@@ -505,8 +507,9 @@ class AnalyticsService:
         for row in rows:
             if row.fob_unit is not None and row.rut is not None:
                 result.append({
-                    "group": row.rut,  # RUT del importador
-                    "value": float(row.fob_unit)  # Cada precio individual
+                    "rut": row.rut,
+                    "fob_unit": float(row.fob_unit),
+                    "cantidad": row.cantidad
                 })
         return result
     
