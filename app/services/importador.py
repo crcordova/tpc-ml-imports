@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.tables.importador import Importador
+from app.tables.producto import Producto
+from app.tables.importacion import Importacion
 from app.schemas.importador import ImportadorCreate, ImportadorResponse
 
 
@@ -28,6 +30,23 @@ class ImportadorService:
         )
         return result.scalars().first()
     
+    @staticmethod
+    async def get_by_product(db: AsyncSession, product: str):
+        stmt = (
+            select(Importador)
+            .join(Importacion, Importador.id == Importacion.importador_id)
+            .join(Producto, Importacion.producto_id == Producto.id)
+            .where(
+                Producto.nombre_generico.ilike(f"%{product}%") 
+            )
+            .distinct()  # Para evitar duplicados
+            .order_by(Importador.nombre)
+        ) 
+        result = await db.execute(stmt)
+        importadores = result.scalars().all()
+        return importadores
+
+
     @staticmethod
     async def get_or_create(db: AsyncSession, rut: str, dv: str, nombre: str) -> Importador:
         result = await db.execute(

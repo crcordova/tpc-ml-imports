@@ -277,7 +277,7 @@ class AnalyticsService:
         # 2. Obtener agregaciones por Producto -> País -> Marca
         stmt_detalle = (
             select(
-                Producto.id.label('producto_id'),
+                # Producto.id.label('producto_id'),
                 Producto.nombre_generico.label('producto_nombre'),
                 Producto.partida_arancelaria,
                 Pais.id.label('pais_id'),
@@ -297,7 +297,7 @@ class AnalyticsService:
             .outerjoin(Pais, Importacion.pais_origen_id == Pais.id)
             .where(and_(*filters))
             .group_by(
-                Producto.id,
+                # Producto.id,
                 Producto.nombre_generico,
                 Producto.partida_arancelaria,
                 Pais.id,
@@ -322,10 +322,13 @@ class AnalyticsService:
             fob_unit_promedio = None
             if row.sum_cantidad and row.sum_cantidad > 0:
                 fob_unit_promedio = row.sum_fob / row.sum_cantidad
+
+            producto_key = (row.producto_nombre, row.partida_arancelaria)
             
             # Nivel Producto
-            if row.producto_id not in productos_dict:
-                productos_dict[row.producto_id] = {
+            # if row.producto_id not in productos_dict:
+            if producto_key not in productos_dict:
+                productos_dict[producto_key] = {
                     "producto_nombre": row.producto_nombre,
                     "partida_arancelaria": row.partida_arancelaria,
                     "paises": {}
@@ -333,14 +336,14 @@ class AnalyticsService:
             
             # Nivel País
             pais_key = row.pais_nombre or "SIN_PAIS"
-            if pais_key not in productos_dict[row.producto_id]["paises"]:
-                productos_dict[row.producto_id]["paises"][pais_key] = {
+            if pais_key not in productos_dict[producto_key]["paises"]:
+                productos_dict[producto_key]["paises"][pais_key] = {
                     "marcas": {}
                 }
             
             # Nivel Marca
             marca_key = row.marca or "SIN_MARCA"
-            productos_dict[row.producto_id]["paises"][pais_key]["marcas"][marca_key] = {
+            productos_dict[producto_key]["paises"][pais_key]["marcas"][marca_key] = {
                 "cantidad_total": float(row.cantidad_total or 0),
                 "fob_total": float(row.fob_total or 0),
                 "fob_unit": {
@@ -351,7 +354,7 @@ class AnalyticsService:
             }
         
         # 4. Calcular totales por país (sumando todas las marcas)
-        for producto_id, producto_data in productos_dict.items():
+        for _, producto_data in productos_dict.items():
             for pais_nombre, pais_data in producto_data["paises"].items():
                 total_cantidad_pais = sum(
                     marca_data["cantidad_total"] 
@@ -381,7 +384,7 @@ class AnalyticsService:
                 pais_data["fob_unit_maximo"] = max(fob_units_pais) if fob_units_pais else None
         
         # 5. Calcular totales por producto (sumando todos los países)
-        for producto_id, producto_data in productos_dict.items():
+        for _, producto_data in productos_dict.items():
             total_cantidad_producto = sum(
                 pais_data["total_cantidad"]
                 for pais_data in producto_data["paises"].values()
@@ -402,7 +405,7 @@ class AnalyticsService:
         
         # 6. Construir respuesta final
         productos_list = []
-        for producto_id, producto_data in productos_dict.items():
+        for _, producto_data in productos_dict.items():
             paises_list = []
             for pais_nombre, pais_data in producto_data["paises"].items():
                 paises_list.append({

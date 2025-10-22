@@ -34,6 +34,17 @@ async def get_importador(
         raise HTTPException(status_code=404, detail="Importador no encontrado")
     return result
 
+@router.get("/product/{product_name}", response_model=list[ImportadorResponse])
+async def get_importers_by_product(
+    product_name: str,
+    db: AsyncSession = Depends(get_db_public)
+):
+    """Obtiene todos los importadores que han importado el producto consultado"""
+    result = await ImportadorService.get_by_product(db, product_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"There not importers for the product {product_name}")
+    return result
+
 
 @router.put("/{importador_id}", response_model=ImportadorResponse)
 async def update_importador(
