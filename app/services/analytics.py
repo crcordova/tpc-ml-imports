@@ -457,9 +457,17 @@ class AnalyticsService:
         query = select(Importacion.fob_unit, Importacion.cantidad).join(Producto).where(Producto.nombre_generico == producto_nombre)
 
         if fecha_start:
-            query = query.where(Importacion.fecha >= fecha_start)
+            try:
+                fecha_start_dt = datetime.strptime(fecha_start, "%Y-%m-%d").date()
+                query = query.where(Importacion.fecha >= fecha_start_dt)
+            except ValueError:
+                raise ValueError("Formato inválido para fecha_start. Use YYYY-MM-DD.")
         if fecha_end:
-            query = query.where(Importacion.fecha <= fecha_end)
+            try:
+                fecha_end_dt = datetime.strptime(fecha_end, "%Y-%m-%d").date()
+                query = query.where(Importacion.fecha <= fecha_end_dt)
+            except ValueError:
+                raise ValueError("Formato inválido para fecha_end. Use YYYY-MM-DD.")
 
         result = await db.execute(query)
         rows = result.fetchall()
